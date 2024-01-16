@@ -1,5 +1,4 @@
-﻿ using Cinemachine;
- using UnityEngine;
+﻿ using UnityEngine;
 #if ENABLE_INPUT_SYSTEM 
 using UnityEngine.InputSystem;
 #endif
@@ -17,7 +16,7 @@ namespace StarterAssets
     {
         [Header("Player")]
         [Tooltip("Move speed of the character in m/s")]
-        public float MoveSpeed = 2.0f;
+        public float MoveSpeed = 5.0f;
 
         [Tooltip("Sprint speed of the character in m/s")]
         public float SprintSpeed = 5.335f;
@@ -76,14 +75,11 @@ namespace StarterAssets
         [Tooltip("For locking the camera position on all axis")]
         public bool LockCameraPosition = false;
 
-        [SerializeField] private CinemachineVirtualCamera _baseCamera;
-        [SerializeField] private CinemachineVirtualCamera _aimCamera;
+        
 
         // cinemachine
         private float _cinemachineTargetYaw;
         private float _cinemachineTargetPitch;
-        private readonly int _activePriority = 100;
-        private readonly int _inactivePriority = 10;
 
         // player
         private float _speed;
@@ -161,8 +157,7 @@ namespace StarterAssets
         private void Update()
         {
             _hasAnimator = TryGetComponent(out _animator);
-
-            SwitchCamera();
+            
             JumpAndGravity();
             GroundedCheck();
             Move();
@@ -197,13 +192,7 @@ namespace StarterAssets
                 _animator.SetBool(_animIDGrounded, Grounded);
             }
         }
-
-        private void SwitchCamera()
-        {
-            _aimCamera.Priority = _input.isAiming ? _activePriority : _inactivePriority;
-            _baseCamera.Priority = _input.isAiming ? _inactivePriority : _activePriority;
-        }
-
+        
         private void CameraRotation()
         {
             // if there is an input and camera position is not fixed
@@ -282,14 +271,15 @@ namespace StarterAssets
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
             // move the player
-            _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
-                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+            // _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
+            //                  new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
 
             // update animator if using character
             if (_hasAnimator)
             {
-                _animator.SetFloat(_animIDSpeed, _animationBlend);
-                _animator.SetFloat(_animIDMotionSpeed, inputMagnitude);
+                _animator.SetFloat("ForwardAxis", _input.move.y);
+                _animator.SetFloat("StrafeAxis", _input.move.x);
+                _animator.SetFloat("MoveSpeed", _input.move.magnitude * MoveSpeed);
             }
         }
 
