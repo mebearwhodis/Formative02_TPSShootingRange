@@ -56,7 +56,7 @@ namespace StarterAssets
 
 		public void OnShoot(InputValue value)
 		{
-			isShot = value.isPressed;
+				isShot = value.isPressed;
 		}
 #endif
 
@@ -90,6 +90,7 @@ namespace StarterAssets
 		{
 			Cursor.lockState = newState ? CursorLockMode.Locked : CursorLockMode.None;
 		}
+		
 	}
 	
 }

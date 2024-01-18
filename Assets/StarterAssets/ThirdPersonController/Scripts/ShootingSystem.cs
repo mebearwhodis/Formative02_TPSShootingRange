@@ -16,6 +16,9 @@ public class ShootingSystem : MonoBehaviour
     [SerializeField] private LayerMask _aimLayers;
     [SerializeField] private Transform _spine;
 
+    //Debug & Tweak
+    [SerializeField] private bool _testingAim;
+    [SerializeField] private float _arrowForce;
 
     [SerializeField] private CinemachineFreeLook _baseCamera;
     [SerializeField] private CinemachineFreeLook _aimCamera;
@@ -28,12 +31,20 @@ public class ShootingSystem : MonoBehaviour
     private GameObject _crosshair;
 
     private Ray _ray;
+    private RaycastHit _rayHit;
+    private bool _hasHit;
     private Vector3 _spineOffset;
     private float _turnSpeed = 15f;
 
     [SerializeField] private Rig _weaponAimRigLayer;
     [SerializeField] private MultiParentConstraint _pullStringConstraint;
     private float _aimDuration = 0.2f;
+
+    [SerializeField] private float _arrowCount;
+    [SerializeField] private Rigidbody _arrowPrefab;
+    [SerializeField] private Rigidbody _currentArrow;
+    [SerializeField] private Transform _arrowTransform;
+    [SerializeField] private Transform _arrowEquipParent;
 
     void Start()
     {
@@ -46,7 +57,12 @@ public class ShootingSystem : MonoBehaviour
     void Update()
     {
         Aim();
-        
+        if (_testingAim)
+        {
+            _animator.SetBool("Aiming", true);
+        }
+        Shoot();
+
         // _shootingOrigin.SetActive(true);
         // _shootingTarget.SetActive(true);
 
@@ -67,7 +83,8 @@ public class ShootingSystem : MonoBehaviour
     private void FixedUpdate()
     {
         float YAxisCamera = _mainCamera.transform.rotation.eulerAngles.y;
-        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, YAxisCamera, 0), _turnSpeed * Time.fixedDeltaTime);
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, YAxisCamera, 0),
+            _turnSpeed * Time.fixedDeltaTime);
     }
 
     private void LateUpdate()
@@ -90,19 +107,39 @@ public class ShootingSystem : MonoBehaviour
         if (_crosshair)
             Destroy(_crosshair);
     }
-    
+
+    private void PickArrow()
+    {
+        //_currentArrow = Instantiate(_arrowPrefab, _arrowTransform.position, _arrowTransform.rotation) as GameObject;
+        _arrowTransform.gameObject.SetActive(true);
+    }
+
+    private void DisableArrow()
+    {
+        _arrowTransform.gameObject.SetActive(false);
+    }
+
+    private void PullString()
+    {
+        _pullStringConstraint.weight = 1;
+    }
+
+    private void ReleaseString()
+    {
+        _pullStringConstraint.weight = 0;
+    }
+
     // ReSharper disable Unity.PerformanceAnalysis
     private void Aim()
     {
         //Switch to/from AimCamera
         _aimCamera.Priority = _input.isAiming ? _activePriority : _inactivePriority;
         _baseCamera.Priority = _input.isAiming ? _inactivePriority : _activePriority;
-        
+
         if (_input.isAiming)
         {
             _weaponAimRigLayer.weight += Time.deltaTime / _aimDuration;
-            _pullStringConstraint.weight = _animator.GetCurrentAnimatorStateInfo(1).IsName("TakeAim") ? 1 : 0;
-            
+
             _animator.SetBool("Aiming", true);
             Vector3 cameraPosition = _mainCamera.transform.position;
             Vector3 cameraDirection = _mainCamera.transform.forward;
@@ -110,23 +147,46 @@ public class ShootingSystem : MonoBehaviour
             _ray = new Ray(cameraPosition, cameraDirection);
             if (Physics.Raycast(_ray, out RaycastHit hitInfo, _maxShootingDistance, _aimLayers))
             {
+                _rayHit = hitInfo;
+                _hasHit = true;
                 Debug.DrawRay(_ray.origin, hitInfo.point, Color.green);
                 DisplayCrosshair(hitInfo.point);
             }
             else
             {
+                _hasHit = false;
                 DestroyCrosshair();
             }
         }
         else
         {
             _weaponAimRigLayer.weight -= Time.deltaTime / _aimDuration;
-            
+
             _animator.SetBool("Aiming", false);
             _shootingTarget.SetActive(false);
             _shootingOrigin.SetActive(false);
             DestroyCrosshair();
         }
+    }
+
+    private void Shoot()
+    {
+        if (_input.isShot)
+        {
+            if (!_input.isAiming)
+            {
+                return;
+            }
+            {
+                FireArrow(_hasHit ? _rayHit.point : _ray.GetPoint(300));
+            }
+        }
+    }
+    private void FireArrow(Vector3 hitPoint)
+    {
+        Vector3 direction = hitPoint - _arrowTransform.position;
+        _currentArrow = Instantiate(_arrowPrefab, _arrowTransform.position, _arrowTransform.rotation) as Rigidbody;
+        _currentArrow.AddForce(direction * _arrowForce, ForceMode.VelocityChange);
     }
 
     void RotateCharacter()
